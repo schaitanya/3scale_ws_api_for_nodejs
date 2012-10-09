@@ -332,12 +332,9 @@ module.exports = class Client
         xml += chunk
       response.on 'end', () ->
         if response.statusCode == 201
-          console.log xml
           callback _self._get_userId xml
         else
           callback _self._error_signup xml
-      response.on 'error', (msg) ->
-        console.log msg    
     request.write query    
     request.end()
 
@@ -442,7 +439,7 @@ module.exports = class Client
     response = new Response()
     response.error error.text(), error.attr('code').value()
     response
-    
+
   _get_userId: (xml) ->
     response = new UserResponse
     response.get_values xml
