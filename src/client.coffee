@@ -4,6 +4,7 @@ libxml = require 'libxmljs'
 
 Response = require './response'
 AuthorizeResponse = require './authorize_response'
+UserResponse = require './user_response'
 
 ###
   3Scale client API
@@ -301,6 +302,108 @@ module.exports = class Client
     request.write query
     request.end()
 
+  ###
+    Signup Express
+    Parameters:
+      org_name, username, email, password (Required)
+      account_plan_id, application_plan_id, service_field_id (Optional)
+    Description:
+      This request allows to reproduce a sign-up from a buyer in a single API call. It will create an Account, an admin User for the account and one Application with its keys.
+      If the plan_id are not passed the default plans will be used instead. You can add additional custome parameters that you define in Fields Definition on your Admin Portal.  
+  ###
+  signup_express: (options, callback) ->
+    _self = this
+    if (typeof options isnt 'object') || !options.org_name? || !options.username? || !options.email? || !options.password?
+      throw "missing required parameters"
+
+    url = "/admin/api/signup.xml"
+    query = querystring.stringify options
+    query += '&' + querystring.stringify  {provider_key: @provider_key}
+    req_opts =
+      host: @host
+      port: 443
+      path: url
+      method: 'POST'
+      headers: {"Content-Type": "application/x-www-form-urlencoded", "Content-Length": query.length}
+    request = https.request req_opts, (response) ->
+      response.setEncoding 'utf8'
+      xml = ''
+      response.on 'data', (chunk) ->
+        xml += chunk
+      response.on 'end', () ->
+        if response.statusCode == 201
+          console.log xml
+          callback _self._get_userId xml
+        else
+          callback _self._error_signup xml
+      response.on 'error', (msg) ->
+        console.log msg    
+    request.write query    
+    request.end()
+
+  ###
+    Account Delete
+    Parameters:
+      account_id (Required)
+    Description:
+      Deletes a buyer account. Deleting an account removes all users, applications, service subscriptions to the account  
+  ###
+  account_delete: (options, callback) ->
+    _self = this
+    if (typeof options isnt 'object') || !options.account_id?
+      throw "missing account_id"
+
+    url = "/admin/api/accounts/#{options.account_id}.xml"
+    query = querystring.stringify {provider_key: @provider_key}
+    req_opts =
+      host: @host
+      port: 443
+      path: url
+      method: 'DELETE'
+      headers: {"Content-Type": "application/x-www-form-urlencoded", "Content-Length": query.length}
+    request = https.request req_opts, (response) ->
+      response.setEncoding 'utf8'
+      xml = ''
+      response.on 'data', (chunk) ->
+        xml += chunk
+      response.on 'end', () ->
+        if response.statusCode == 200
+          callback xml
+        else
+          callback xml
+    request.write query      
+    request.end()        
+
+  ###
+    Application Find
+    Parameters:
+      application_id (Required)    
+  ###
+  application_find: (options, callback) ->
+    _self = this
+    if (typeof options isnt 'object') || !options.application_id?
+      throw "missing application_id"
+
+    url = "/admin/api/applications/find.xml?"
+    query = querystring.stringify options
+    query += '&' + querystring.stringify {provider_key: @provider_key}
+    req_opts = 
+      host: @host
+      port: 443
+      path: url + query
+      method: 'GET'
+    request = https.request req_opts, (response) ->
+      response.setEncoding  'utf8'
+      xml = ''
+      response.on 'data', (chunk) ->
+        xml += chunk
+      response.on 'end', () ->
+        if response.statusCode == 200          
+          callback _self._get_user_key xml
+        else
+          callback  _self._error_user_key()
+    request.end()      
+
 
   # privates methods
   _build_success_authorize_response: (xml) ->
@@ -323,8 +426,8 @@ module.exports = class Client
           report =
             period: usage_report.attr('period').value()
             metric: usage_report.attr('metric').value()
-            period_start: usage_report.get('period_start').text()
-            period_end: usage_report.get('period_end').text()
+            # period_start: usage_report.get('period_start').text()
+            # period_end: usage_report.get('period_end').text()
             current_value: usage_report.get('current_value').text()
             max_value: usage_report.get('max_value').text()
           response.add_usage_reports report
@@ -339,3 +442,24 @@ module.exports = class Client
     response = new Response()
     response.error error.text(), error.attr('code').value()
     response
+    
+  _get_userId: (xml) ->
+    response = new UserResponse
+    response.get_values xml
+    response
+
+  _error_signup: (xml) ->
+    response = new UserResponse
+    response.errors = true
+    response.show_errors xml
+    response
+
+  _get_user_key: (xml) ->
+    response = new UserResponse
+    response.get_user_key xml
+    response
+
+  _error_user_key: () ->
+    response = new UserResponse
+    response.errors = true
+    response  

@@ -10,14 +10,17 @@
 ###
 provider_key = '05273bcb282d1d4faafffeb01e224db0'
 application_key = '3e05c797ef193fee452b1ddf19defa74'
-application_id = '75165984'  
+application_id = '75165984'
+user_key = application_id
 
 trans = [
   { "app_id": application_id, "usage": {"hits": 1}},
   { "app_id": application_id, "usage": {"hits": 1000}}
 ]
+
 report_test = {transactions: trans, provider_key: provider_key}
 
+signup_test = {org_name:'Senico Labs', username:'3scale_test', email: 'spam@boun.cr', password: 'MyS3cr3tP@sSw0rD'}
 events = require('events')
 vows = require('vows')
 assert = require('assert')
@@ -90,7 +93,15 @@ vows
 
       'should throw an exception if authrep_with_user_key is called without :user_key': (Client) ->
         client = new Client(provider_key)
-        assert.throws (() -> client.authrep_with_user_key({}, ()->)), 'missing user_key'  
+        assert.throws (() -> client.authrep_with_user_key({}, ()->)), 'missing user_key'
+
+      'should have an signup_express method': (Client) ->
+        client = new Client provider_key
+        assert.isFunction client.signup_express
+
+      'should throw an exception if signup_express is callback without :org_name, :username, :email, :password': (Client) ->
+        client = new Client provider_key
+        assert.throws (() -> client.signup_express({}, () ->)), "missing required parameters"
 
     'The authorize method should':
       topic: ->
@@ -110,8 +121,8 @@ vows
     'The oauth_authorize method should':
       topic: ->
         promise = new events.EventEmitter
-        client = new Client oauth_provider_key
-        client.oauth_authorize {app_id: oauth_application_id}, (response) ->
+        client = new Client provider_key
+        client.oauth_authorize {app_id: application_id}, (response) ->
           if response.is_success
             promise.emit 'success', response
           else
@@ -125,8 +136,8 @@ vows
     'The authorize_with_user_key method should':
       topic: ->
         promise = new events.EventEmitter
-        client = new Client senico_provider_key
-        client.authorize_with_user_key {user_key: senico_user_key}, (response) ->
+        client = new Client provider_key
+        client.authorize_with_user_key {user_key: user_key}, (response) ->
           if response.is_success
             promise.emit 'success', response
           else
@@ -137,7 +148,7 @@ vows
       'call the callback with the AuthorizeResponse': (response) ->
         assert.isTrue response.is_success()
 
-    'The Event Emitter':  
+    'The Event Emitter':
       topic: ->
         promise = new events.EventEmitter
         client = new Client provider_key
@@ -159,5 +170,21 @@ vows
           promise
 
         'give a success response with the correct params': (response) ->
-          assert.isTrue response.is_success()     
+          assert.isTrue response.is_success()
+
+    "The signup_express express should":
+      topic: ->
+        promise = new events.EventEmitter
+        client = new Client provider_key
+        client.signup_express signup_test, (response) ->
+          if response.is_success
+            client.account_delete {account_id: response.account_id}, (resp) ->
+              promise.emit 'success', response            
+          else
+            promise.else 'error', response
+
+        promise
+
+      'call the callback with UserResponse': (response) ->
+        assert.isTrue response.is_success()
   .export module
