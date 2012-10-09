@@ -26,7 +26,8 @@
     "web"
   ],
   "scripts": {
-    "prepublish": "coffee --bare -o lib -c src"
+    "prepublish": "coffee --bare -o lib -c src",
+    "test": "vows test/authorize_response_test.coffee test/response_test.coffee --spec"
   },
   "directories": {
     "lib": "./lib"
