@@ -10,6 +10,15 @@ class UserResponse extends Response
 		@app_id = ''
 		@user_key = ''
 		@account_id  = ''
+		@application_key = ''
+
+	get_application_key:	(xml)	->
+		doc = libxmljs.parseXml xml
+		keys = doc.get '//keys'
+		@application_key = keys.get('key').text()
+		@account_id = doc.get('user_account_id').text()
+		@id = doc.get('id').text()
+
 
 	get_user_id: (xml) ->
 		doc = libxmljs.parseXml xml
@@ -19,7 +28,7 @@ class UserResponse extends Response
 	get_app_id:	(xml) ->
 		doc	= libxmljs.parseXml	xml
 		application = doc.get '//application'
-		@app_id 	= application.get('id').text()
+		@app_id 	= application.get('application_id').text()
 
 	show_errors: (xml) ->
 		doc = libxmljs.parseXml xml
@@ -28,7 +37,6 @@ class UserResponse extends Response
 
 		for val, error of xml_errors			
 			@error_messages.push error.text()
-
 		@errors
 
 	get_user_key:	(xml) ->

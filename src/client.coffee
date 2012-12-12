@@ -374,12 +374,12 @@ module.exports = class Client
   ###
     Application Find
     Parameters:
-      application_id (Required)    
+      app_id (Required)    
   ###
   application_find: (options, callback) ->
     _self = this
-    if (typeof options isnt 'object') || !options.application_id?
-      throw "missing application_id"
+    if (typeof options isnt 'object') || !options.app_id?
+      throw "missing app_id"
 
     url = "/admin/api/applications/find.xml?"
     query = querystring.stringify options
@@ -395,11 +395,66 @@ module.exports = class Client
       response.on 'data', (chunk) ->
         xml += chunk
       response.on 'end', () ->
-        if response.statusCode == 200          
-          callback _self._get_user_key xml
+        if response.statusCode == 200
+          callback  _self._get_application_key xml
         else
           callback  _self._error_user_key()
-    request.end()      
+    request.end()
+
+  ###
+    User List
+  ###
+  user_list:  (options, callback) ->
+    _self = this
+    if(typeof options isnt 'object' or not options.account_id? )
+      throw "requires account_id "
+    url   =  "/admin/api/accounts/#{options.account_id}/users.xml"
+    query =  querystring.stringify {provider_key: @provider_key}
+    req_opts = 
+      host: @host
+      port: 443
+      path: url
+      method: 'GET'
+    request = https.request req_opts, (response) ->
+      response.setEncoding  'utf8'
+      xml = ''
+      response.on 'data', (chunk) ->
+        xml += chunk
+      response.on 'end', ->
+        if response.statusCode is 200
+          callback null, _self._get_userId xml
+        else
+          callback true, null
+
+
+  ###
+    User Update
+  ###
+  user_update:  (options, callback) ->
+    _self = this
+    if(typeof options isnt 'object' or not options.account_id? or not options.user_id?)
+      throw "requires account_id and user_idsss"
+    url   =  "/admin/api/accounts/#{options.account_id}/users/#{options.user_id}.xml"
+    query = querystring.stringify options
+    query += '&' + querystring.stringify  {provider_key: @provider_key}
+    req_opts =
+      host: @host
+      port: 443
+      path: url
+      method: 'PUT'
+      headers: {"Content-Type": "application/x-www-form-urlencoded", "Content-Length": query.length}
+    request = https.request req_opts, (response) ->
+      response.setEncoding 'utf8'
+      xml = ''
+      response.on 'data', (chunk) ->
+        xml += chunk
+      response.on 'end', () ->
+        if response.statusCode == 200
+          callback null, xml
+        else
+          callback true, null
+    request.write query    
+    request.end()
 
 
   # privates methods
@@ -456,7 +511,12 @@ module.exports = class Client
     response.get_user_key xml
     response
 
-  _error_user_key: () ->
+  _error_user_key: ->
     response = new UserResponse
     response.errors = true
-    response  
+    response
+
+  _get_application_key: (xml) ->
+    response = new UserResponse
+    response.get_application_key xml
+    response
